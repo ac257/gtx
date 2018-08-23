@@ -54,9 +54,16 @@ phewas <- function(chrom, pos, rs,
         truncp <- FALSE
     }
 
-    p1 <- p1[order(p1$tag, p1$pval), ] # with this sort, tag==NA will be last
-    p1$tag[is.na(p1$tag)] <- 'No tag'
-    p1$x1 <- 1:nrow(p1) # initial attempt at x axis position, to be refined below
+    p1 = p1 %>% 
+    	dplyr::arrange(tag, pval) %>%
+	dplyr::mutate(tag = ifelse(is.na(tag), 'No tag', tag)) %>%
+	tibble::rownames_to_column(var="x1")
+
+#    p1 <- p1[order(p1$tag, p1$pval), ] # with this sort, tag==NA will be last
+#    p1$tag[is.na(p1$tag)] <- 'No tag'
+#    p1$x1 <- 1:nrow(p1) # initial attempt at x axis position, to be refined below
+
+
     x1 <- with(aggregate(p1$x1, 
                          by = list(tag = p1$tag), 
                          FUN = function(x) return(c(min = min(x), max = max(x)))),
