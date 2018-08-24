@@ -54,20 +54,29 @@ phewas <- function(chrom, pos, rs,
         truncp <- FALSE
     }
 
-    p1 = p1 %>% 
-    	dplyr::arrange(tag, pval) %>%
-	dplyr::mutate(tag = ifelse(is.na(tag), 'No tag', tag)) %>%
-	tibble::rownames_to_column(var="x1")
+    p1.tidy = p1 %>% 
+    	dplyr::arrange(tag, pval) %>% 					#    p1 <- p1[order(p1$tag, p1$pval), ] # with this sort, tag==NA will be last
+	dplyr::mutate(tag = ifelse(is.na(tag), 'No tag', tag)) %>%	#    p1$tag[is.na(p1$tag)] <- 'No tag'
+	tibble::rownames_to_column(var="x1")				#    p1$x1 <- 1:nrow(p1) # initial attempt at x axis position, to be refined below
+    p1 <- p1[order(p1$tag, p1$pval), ] # with this sort, tag==NA will be last
+    p1$tag[is.na(p1$tag)] <- 'No tag'
+    p1$x1 <- 1:nrow(p1) # initial attempt at x axis position, to be refined below
 
-#    p1 <- p1[order(p1$tag, p1$pval), ] # with this sort, tag==NA will be last
-#    p1$tag[is.na(p1$tag)] <- 'No tag'
-#    p1$x1 <- 1:nrow(p1) # initial attempt at x axis position, to be refined below
 
+    print(p1)
+    print(p1.tidy)
+
+    x1.tidy = p1 %>% 
+    	group_by(tag) %>%
+    	summarise(min=min(x, max=max(x)))
 
     x1 <- with(aggregate(p1$x1, 
                          by = list(tag = p1$tag), 
                          FUN = function(x) return(c(min = min(x), max = max(x)))),
                cbind(data.frame(tag), as.data.frame(x)))
+    print(x1)
+    print(x1.head)
+    
     group_interspace <- 50 # this should be a user configurable parameter
     x1$offset <- c(0, cumsum(x1$max - x1$min + group_interspace))[1:nrow(x1)] - x1$min + group_interspace
     x1$midpt <- 0.5*(x1$max + x1$min) + x1$offset
