@@ -1,3 +1,51 @@
+#' S4 class containing the data to draw a regional association plot.
+#' 
+#' The following style plots can be drawn with a \code{regionplot} object:
+#' \itemize{
+#'  \item{"'signals'"}
+#'  \item{"'ld'"}
+#'  \item{"'classic'"}
+#'  \item{"'signal'"}
+#'  }
+#'  
+#' @slot queryForPValues The query used to get the p-values for a given GWAS 
+#'   from a database.
+#' @slot pValues A database containing the p-values for plotting.
+#' @slot xEntity A named list containing \code{entity}, \code{entity_label} and 
+#'   \code{entity_where}.
+#' @slot xRegion A named list containing \code{chrom}, \code{pos_start}, 
+#'   \code{pos_end} and \code{label}. 
+#'   \itemize{
+#'    \item{\code{chrom} is the chromosome to be plotted.} 
+#'    \item{\code{pos_start} and \code{pos_end} specify the start and end of 
+#'     the region to draw the plot for.} 
+#'    \item{\code{label} gives a label for printing that shows the chromosome 
+#'     and region.}
+#'    }
+#' @slot indexSNPs A data frame with two columns for the position and p-values 
+#'   of SNPs that should be highlighted in the output plot.
+#' @slot plotTitle The title for a regional association plot.
+#' @slot plotSubTitle The subtitle for a regional association plot.
+#' 
+#' @seealso \code{\link{regionplot}}
+regionplot <- setClass("regionplot",
+                       slots = c(queryForPValues = "character",
+                                 pValues = 'data.frame',
+                                 xEntity = "list",
+                                 xRegion = "list",
+                                 indexSNPs = 'data.frame',
+                                 plotTitle = "character",
+                                 plotSubTitle = "character"),
+                       prototype = list(queryForPValues = NA_character_,
+                                        pValues = NULL,
+                                        xEntity = NULL,
+                                        xRegion = NULL,
+                                        indexSNPs = NULL,
+                                        plotTitle = NA_character_,
+                                        plotSubTitle = NA_character_)
+)
+
+
 ## regionplot.new and associated functions
 ## assumes database connection is provided by getOption("gtx.dbConnection")
 
@@ -34,28 +82,28 @@ regionplot <- function(analysis, # what analysis (entity should be next)
     }
   }
   
-  ## Obtain pvals by passing arguments through to regionplot.data()
-  pvals <- regionplot.data(analysis = analysis, entity = entity, signal = signal, 
-                           chrom = chrom, pos_start = pos_start, pos_end = pos_end, pos = pos, 
-                           hgncid = hgncid, ensemblid = ensemblid, rs = rs, 
-                           surround = surround,                          
-                           style = style,
-                           priorsd = priorsd, priorc = priorc, cs_size = cs_size, 
-                           maf_ge = maf_ge, rsq_ge = rsq_ge,
-                           emac_ge = emac_ge, case_emac_ge = case_emac_ge, 
-                           dbc = dbc)
-
-  ## Determine x-axis range from attr()ibutes of data
-  ## was re-resolved from command line args
-  xregion <- attr(pvals, 'region')
-  #chrom <- xregion$chrom
-  #pos_start = xregion$pos_start
-  #pos_end = xregion$pos_end
+  # Get the data for processing
+  dataForRegionPlot <- getDataForRegionplot(analysis = analysis,
+                                            entity = entity, 
+                                            signal = signal,
+                                            chrom = chrom, 
+                                            pos_start = pos_start, 
+                                            pos_end = pos_end, 
+                                            pos = pos, 
+                                            hgncid = hgncid, 
+                                            ensemblid = ensemblid, 
+                                            rs = rs, 
+                                            surround = surround, 
+                                            style = style,
+                                            priorsd = priorsd, 
+                                            priorc = priorc, 
+                                            cs_size = cs_size, 
+                                            maf_ge, 
+                                            rsq_ge,
+                                            emac_ge,
+                                            case_emac_ge, 
+                                            dbc = dbc)
   
-  ## Determine entity from attr()ibutes of data
-  xentity <- attr(pvals, 'entity')
-
-  pvals <- within(pvals, impact[impact == ''] <- NA)
   ## Use na.rm in min, even though these should not be present,
   ##   because we want regionplot() to have robust behaviour
   ## Note, regionplot.data SQL includes pval IS NOT NULL clause
@@ -63,30 +111,6 @@ regionplot <- function(analysis, # what analysis (entity should be next)
   ## Also, regionplot.data removes and warns if there are
   ##   non-finite pval
   pmin <- max(min(pvals$pval, na.rm = TRUE), 10^-plot_ymax)
-
-  main <- gtxanalysis_label(analysis = analysis, entity = attr(pvals, 'entity'), signal = signal, nlabel = TRUE, dbc = dbc)
-
-  ## in future we may need to pass maf_lt and rsq_lt as well  
-  if (missing(signal)) {
-    fdesc <- gtxfilter_label(maf_ge = maf_ge, rsq_ge = rsq_ge, emac_ge = emac_ge, case_emac_ge = case_emac_ge, analysis = analysis)
-  } else {
-    fdesc <- 'All variants (after pre-CLEO filtering)'
-  }
-  
-  ## Highlight index SNP(s) if pos or rs argument was used
-  gp <- data.frame(NULL)
-  if (!missing(pos)) {
-      ## funny syntax to avoid subset(pvals, pos=pos)
-      gp <- rbind(gp, pvals[pvals$pos %in% pos, c('pos', 'pval')])
-  }
-  if (!missing(rs)) {
-      # query this rs id
-      qrs <- sqlWrapper(dbc,
-                       sprintf('SELECT chrom, pos, ref, alt FROM sites WHERE %s;',
-                               gtxwhere(chrom = xregion$chrom, rs = rs)),
-                        uniq = FALSE, zrok = TRUE)
-      gp <- rbind(gp, merge(pvals, qrs, all.x = FALSE, all.y = TRUE)[ , c('pos', 'pval')])
-  }
 
   ## set par to ensure large enough margins, internal xaxs, regular yaxs,
   ## should apply for all plots generated
@@ -287,6 +311,253 @@ regionplot <- function(analysis, # what analysis (entity should be next)
   ## for when called from within GUI tools, return 
   ## the pvalue dataframe.  Should also return information on the genelayout. 
   return(invisible(pvals))
+}
+
+#' Get data for regionplot.
+#' 
+#' \code{getDataForRegionplot()} returns all of the data required to draw a
+#'   regional association plot with the \code{regionplot()} function.
+#' 
+#' @param analysis Character giving the key value of the GWAS to draw a regional
+#'   association plot from.
+#' @param entity Entity within eQTL to draw the regional association plot for, 
+#'   as ENSEMBL or HGNC identifier. Character.
+#' @param signal 
+#' @param chrom Character specifying the chromosome.
+#' @param pos_start The start position of the region for which to draw the plot.
+#'   Integer.
+#' @param pos_end The end position for which to draw the plot. Integer.
+#' @param pos The position for which to define the region around. Integer.
+#' @param hgncid The HGNC identifier of the gene to define the region around.
+#'   Character.
+#' @param ensemblid The ENSEMBL gene identifier to define the region around. 
+#'   Character.
+#' @param rs The dbSNP RS identifier of the variant to define the region around.
+#'   Character.
+#' @param surround The distance around the gene to include in the region for 
+#'   plotting. Default is \code{500000}.
+#' @param style Character vector specifying the style or styles of plot to 
+#'   output. Can be one or more of \code{c('none', 'signals', 'signal', 
+#'   'classic', 'ld')}.
+#' @param priorsd Default is \code{1}. Numeric.
+#' @param priorc Default is \code{1e-5}. Numeric.
+#' @param cs_size Default is \code{0.95}. Numeric.
+#' @param maf_ge Numeric filtering threshold. Minor alleles with a frequency 
+#'   greater than or equal to \code{maf_ge} will be included in the plot.
+#' @param rsq_ge Numeric filtering threshold, specifying imputation R-squared 
+#'   greater than or equal to \code{rsq_ge}.
+#' @param emac_ge Numeric filtering threshold. Minor allele count must be 
+#'   greater than or equal to \code{emac_ge}.
+#' @param case_emac_ge Numeric filtering threshold. Case minor allele count must
+#'   be greater than or equal to \code{case_emac_ge}.
+#' @param dbc A database connection.
+#' @return A \code{\linkS4class{regionplot}} object containing the data needed 
+#'   to draw a regional association plot.
+#'
+#' @family \code{\link{regionplot}} functions.
+#' @seealso \code{\link{regionplot()}} to get the data and draw regional 
+#'   association plots in one step.
+#' 
+#' @export
+getDataForRegionplot <- function(analysis, 
+                                 entity, 
+                                 signal, 
+                                 chrom, 
+                                 pos_start, 
+                                 pos_end, 
+                                 pos, 
+                                 hgncid, 
+                                 ensemblid, 
+                                 rs, 
+                                 surround = 500000,
+                                 style = 'signals',
+                                 priorsd = 1,
+                                 priorc = 1e-5,
+                                 cs_size = 0.95, 
+                                 maf_ge,
+                                 rsq_ge,
+                                 emac_ge, 
+                                 case_emac_ge, 
+                                 dbc = getOption("gtx.dbConnection", NULL)) {
+  
+  # Check the database connection
+  gtxdbcheck(dbc)
+  
+  # Initialise a new regionplot object
+  dataForRegionplot <- new('regionplot')
+  
+  # Determine x-axis range from arguments
+  dataForRegionplot@xRegion <- gtxregion(chrom = chrom, 
+                                         pos_start = pos_start, 
+                                         pos_end = pos_end, 
+                                         pos = pos, 
+                                         hgncid = hgncid, 
+                                         ensemblid = ensemblid, 
+                                         rs = rs, 
+                                         signal = signal, 
+                                         analysis = analysis, 
+                                         entity = entity, 
+                                         surround = surround,
+                                         dbc = dbc)
+  
+  # If required, determine entity and associated info including entity_label
+  dataForRegionplot@xEntity <- gtxentity(analysis = analysis, 
+                                         entity = entity, 
+                                         hgncid = hgncid, 
+                                         ensemblid = ensemblid)
+  
+  # Get the p-values
+  dataForRegionplot@pValues <- getPValues(analysis = analysis,
+                                          signal = signal,
+                                          chrom = dataForRegionplot@xRegion$chrom,
+                                          pos_start = dataForRegionplot@xRegion$pos_start,
+                                          pos_end = dataForRegionplot@xRegion$pos_end,
+                                          style = style,
+                                          maf_ge = maf_ge,
+                                          rsq_ge = rsq_ge,
+                                          emac_ge = emac_ge,
+                                          case_emac_ge = case_emac_ge,
+                                          entityWhere = dataForRegionplot@xEntity$entity_where,
+                                          xRegionLabel = dataForRegionplot@xRegion$label,
+                                          dbc = dbc)
+  
+  # Set the title of the plot (used to be 'main')
+  dataForRegionplot@plotTitle <- gtxanalysis_label(analysis = analysis, 
+                                                   entity = dataForRegionplot@xEntity, 
+                                                   signal = signal, 
+                                                   nlabel = TRUE, 
+                                                   dbc = dbc)
+  
+  # Set the subtitle of the plot (used to be 'fdesc')
+  # in future we may need to pass maf_lt and rsq_lt as well  
+  if (missing(signal)) {
+    dataForRegionplot@plotSubTitle <- gtxfilter_label(maf_ge = maf_ge, 
+                                                      rsq_ge = rsq_ge,
+                                                      emac_ge = emac_ge, 
+                                                      case_emac_ge = case_emac_ge, 
+                                                      analysis = analysis)
+  } else {
+    dataForRegionplot@plotSubTitle <- 'All variants (after pre-CLEO filtering)'
+  }
+  
+  # Get index SNPs to highlight if the pos or rs arg was used
+  if (!missing(pos)) {
+    dataForRegionplot@indexSNPs <- dataForRegionplot@pValues[dataForRegionplot@pValues$pos %in% pos, c('pos', 'pval')]
+  }
+  if (!missing(rs)) {
+    
+    # Query this rs id
+    rsQuery <- getDataFromDB(connectionType = 'SQL',
+                             connectionArguments = list(dbc,
+                                                        sprintf('SELECT chrom, pos, ref, alt 
+                                                                FROM sites 
+                                                                WHERE %s;',
+                                                                gtxwhere(chrom = dataForRegionplot@xRegion$chrom, 
+                                                                         rs = rs)),
+                                                        uniq = FALSE, 
+                                                        zrok = TRUE))
+    dataForRegionplot@indexSNPs <- rbind(dataForRegionplot@indexSNPs, 
+                                         merge(dataForRegionplot@pValues, 
+                                               rsQuery, 
+                                               all.x = FALSE, 
+                                               all.y = TRUE)[ , c('pos', 'pval')])
+  }
+  
+  return(dataForRegionplot)
+}
+
+# getPValues gets the p-values for regionplot
+# The arguments for this function are almost all inherited from 
+# getDataForRegionplot
+# entityWhere is the entity for plotting, which can be produced with gtxentity()
+# xRegionLabel is the label for the region to plot, which can be produced with
+# gtxregion()
+getPValues <- function(analysis,
+                       signal, 
+                       chrom,
+                       pos_start,
+                       pos_end,
+                       style = 'signals',
+                       maf_ge, 
+                       rsq_ge,
+                       emac_ge, 
+                       case_emac_ge, 
+                       entityWhere,
+                       xRegionLabel,
+                       dbc = getOption("gtx.dbConnection", NULL)) {
+  
+  # Query marginal p-values
+  if (missing(signal)) {
+    
+    gtx_info('Querying marginal p-values')
+    t0 <- as.double(Sys.time())
+    
+    pValues <- getDataFromDB(connectionType = 'SQL',
+                             connectionArguments = list(dbc, 
+                                                        sprintf('SELECT gwas_results.chrom, gwas_results.pos, gwas_results.ref, gwas_results.alt, pval, impact %s 
+                                                                FROM %sgwas_results 
+                                                                LEFT JOIN vep 
+                                                                USING (chrom, pos, ref, alt) 
+                                                                WHERE %s AND %s AND %s AND %s AND pval IS NOT NULL;',
+                                                                if (any(c('signal', 'signals') %in% tolower(style))) ', beta, se, rsq, freq' else '', 
+                                                                gtxanalysisdb(analysis), 
+                                                                gtxwhat(analysis1 = analysis),
+                                                                entityWhere, # (entity=...) or (True)
+                                                                gtxwhere(chrom, 
+                                                                         pos_ge = pos_start, 
+                                                                         pos_le = pos_end, 
+                                                                         tablename = 'gwas_results'),
+                                                                gtxfilter(maf_ge = maf_ge, 
+                                                                          rsq_ge = rsq_ge, 
+                                                                          emac_ge = emac_ge, 
+                                                                          case_emac_ge = case_emac_ge, 
+                                                                          analysis = analysis)),
+                                                        uniq = FALSE))
+    
+    t1 <- as.double(Sys.time())
+    gtx_info('Query returned {nrow(pValues)} variants in query region {xRegionLabel} in {round(t1 - t0, 3)}s.')
+    
+  } else {
+    
+    gtx_info('Querying conditional p-values')
+    t0 <- as.double(Sys.time())
+    
+    pValues <- getDataFromDB(connectionType = 'SQL', 
+                             connectionArguments = list(dbc, 
+                                                        sprintf('SELECT gwas_results_cond.chrom, gwas_results_cond.pos, gwas_results_cond.ref, gwas_results_cond.alt, 
+                                                                beta_cond AS beta, se_cond AS se, impact 
+                                                                FROM %sgwas_results_cond 
+                                                                LEFT JOIN vep 
+                                                                USING (chrom, pos, ref, alt) 
+                                                                WHERE %s AND %s AND %s;',
+                                                                gtxanalysisdb(analysis), 
+                                                                where_from(analysisu = analysis, 
+                                                                           signalu = signal, 
+                                                                           tablename = 'gwas_results_cond'), 
+                                                                entityWhere, # (entity=...) or (True)
+                                                                gtxwhere(chrom, 
+                                                                         pos_ge = pos_start, 
+                                                                         pos_le = pos_end, 
+                                                                         tablename = 'gwas_results_cond')), 
+                                                        uniq = FALSE))
+    
+    t1 <- as.double(Sys.time())
+    gtx_info('Query returned {nrow(pvals)} variants in query region {xRegionLabel} in {round(t1 - t0, 3)}s.')
+    
+    pValues$pval <- with(pValues, pchisq((beta/se)^2, df = 1, lower.tail = FALSE))
+  }
+  
+  if (any(!is.finite(pValues$pval))) {
+    gtx_warn('Removing {sum(!is.finite(pValues$pval))} variants with non-finite P-values')
+    
+    pValues <- pValues[is.finite(pValues$pval), ]
+    
+    gtx_debug('After non-finite P-values removed, {nrow(pValues)} variants in query region {xRegionLabel}')
+  }
+  
+  pValues <- within(pValues, impact[impact == ''] <- NA)
+  
+  return(pValues)
 }
 
 #' @export
