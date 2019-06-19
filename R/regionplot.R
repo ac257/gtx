@@ -91,8 +91,9 @@ regionplot <- setClass("regionplot",
 #'   \code{getOption("gtx.dbConnection", NULL)}.
 #' @return Regional association plots and a \code{\linkS4class{regionplot}} 
 #'   object containing the data used to draw the regional association plot.
-#'
-#' @family \code{\link{regionplot}} functions.
+#'   
+#' @author Toby Johnson \email{Toby.x.Johnson@@gsk.com}
+#' @family \code{\link{regionplot.data}, \link{getDataForRegionplot}}
 #' @seealso \code{\link{getDataForRegionplot()}} to get the data for 
 #'   \code{regionplot()}.
 #' 
@@ -370,44 +371,12 @@ regionplot <- function(analysis,
   return(invisible(pvals))
 }
 
-#' Get data for regionplot.
+#' Get data for a regional association plot.
 #' 
 #' \code{getDataForRegionplot()} returns all of the data required to draw a
 #'   regional association plot with the \code{regionplot()} function.
 #' 
-#' @param analysis Character giving the key value of the GWAS to draw a regional
-#'   association plot from.
-#' @param entity Entity within eQTL to draw the regional association plot for, 
-#'   as ENSEMBL or HGNC identifier. Character.
-#' @param signal 
-#' @param chrom Character specifying the chromosome.
-#' @param pos_start The start position of the region for which to draw the plot.
-#'   Integer.
-#' @param pos_end The end position for which to draw the plot. Integer.
-#' @param pos The position for which to define the region around. Integer.
-#' @param hgncid The HGNC identifier of the gene to define the region around.
-#'   Character.
-#' @param ensemblid The ENSEMBL gene identifier to define the region around. 
-#'   Character.
-#' @param rs The dbSNP RS identifier of the variant to define the region around.
-#'   Character.
-#' @param surround The distance around the gene to include in the region for 
-#'   plotting. Default is \code{500000}.
-#' @param style Character vector specifying the style or styles of plot to 
-#'   output. Can be one or more of \code{c('none', 'signals', 'signal', 
-#'   'classic', 'ld')}.
-#' @param priorsd Default is \code{1}. Numeric.
-#' @param priorc Default is \code{1e-5}. Numeric.
-#' @param cs_size Default is \code{0.95}. Numeric.
-#' @param maf_ge Numeric filtering threshold. Minor alleles with a frequency 
-#'   greater than or equal to \code{maf_ge} will be included in the plot.
-#' @param rsq_ge Numeric filtering threshold, specifying imputation R-squared 
-#'   greater than or equal to \code{rsq_ge}.
-#' @param emac_ge Numeric filtering threshold. Minor allele count must be 
-#'   greater than or equal to \code{emac_ge}.
-#' @param case_emac_ge Numeric filtering threshold. Case minor allele count must
-#'   be greater than or equal to \code{case_emac_ge}.
-#' @param dbc A database connection.
+#' @inheritParams regionplot
 #' @return A \code{\linkS4class{regionplot}} object containing the data needed 
 #'   to draw a regional association plot.
 #'

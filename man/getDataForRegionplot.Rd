@@ -2,7 +2,7 @@
 % Please edit documentation in R/regionplot.R
 \name{getDataForRegionplot}
 \alias{getDataForRegionplot}
-\title{Get data for regionplot.}
+\title{Get data for a regional association plot.}
 \usage{
 getDataForRegionplot(analysis, entity, signal, chrom, pos_start, pos_end,
   pos, hgncid, ensemblid, rs, surround = 5e+05, style = "signals",
@@ -10,42 +10,43 @@ getDataForRegionplot(analysis, entity, signal, chrom, pos_start, pos_end,
   emac_ge, case_emac_ge, dbc = getOption("gtx.dbConnection", NULL))
 }
 \arguments{
-\item{analysis}{Character giving the key value of the GWAS to draw a regional
-association plot from.}
+\item{analysis}{Character giving the key value for the GWAS analysis to draw 
+a regional association plot from.}
 
-\item{entity}{Entity within eQTL to draw the regional association plot for, 
-as ENSEMBL or HGNC identifier. Character.}
+\item{entity}{Optional entity within eQTL to draw the regional association 
+plot for, as ENSEMBL or HGNC identifier. Character.}
 
 \item{signal}{}
 
-\item{chrom}{Character specifying the chromosome.}
+\item{chrom}{Optional character specifying the chromosome.}
 
-\item{pos_start}{The start position of the region for which to draw the plot.
-Integer.}
+\item{pos_start}{Optional start position of the region for which to draw the 
+plot. Integer.}
 
-\item{pos_end}{The end position for which to draw the plot. Integer.}
+\item{pos_end}{Optional end position of the region for which to draw the 
+plot. Integer.}
 
-\item{pos}{The position for which to define the region around. Integer.}
+\item{pos}{Optional position for which to define the region around. Integer.}
 
-\item{hgncid}{The HGNC identifier of the gene to define the region around.
+\item{hgncid}{Optional HGNC identifier of the gene to define the region 
+around. Character.}
+
+\item{ensemblid}{Optional ENSEMBL gene identifier to define the region 
+around. Character.}
+
+\item{rs}{dbSNP RS identifier of the variant to define the region around.
 Character.}
 
-\item{ensemblid}{The ENSEMBL gene identifier to define the region around. 
-Character.}
-
-\item{rs}{The dbSNP RS identifier of the variant to define the region around.
-Character.}
-
-\item{surround}{The distance around the gene to include in the region for 
+\item{surround}{Distance around the gene to include in the region for 
 plotting. Default is \code{500000}.}
 
 \item{style}{Character vector specifying the style or styles of plot to 
 output. Can be one or more of \code{c('none', 'signals', 'signal', 
-'classic', 'ld')}.}
+'classic', 'ld')}. Default is \code{'signals'}.}
 
-\item{priorsd}{Default is \code{1}. Numeric.}
+\item{priorsd}{Optional. Default is \code{1}. Numeric.}
 
-\item{priorc}{Default is \code{1e-5}. Numeric.}
+\item{priorc}{Optional. Default is \code{1e-5}. Numeric.}
 
 \item{cs_size}{Default is \code{0.95}. Numeric.}
 
@@ -61,7 +62,8 @@ greater than or equal to \code{emac_ge}.}
 \item{case_emac_ge}{Numeric filtering threshold. Case minor allele count must
 be greater than or equal to \code{case_emac_ge}.}
 
-\item{dbc}{A database connection.}
+\item{dbc}{A database connection. Default is 
+\code{getOption("gtx.dbConnection", NULL)}.}
 }
 \value{
 A \code{\linkS4class{regionplot}} object containing the data needed 
@@ -74,5 +76,7 @@ A \code{\linkS4class{regionplot}} object containing the data needed
 \seealso{
 \code{\link{regionplot()}} to get the data and draw regional 
   association plots in one step.
+
+Other \code{\link{regionplot}} functions.: \code{\link{regionplot}}
 }
 \concept{\code{\link{regionplot}} functions.}
