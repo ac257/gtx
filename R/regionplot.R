@@ -593,33 +593,50 @@ regionplot.data <- function(analysis, entity, signal,
     if (missing(signal)) {
       gtx_info('Querying marginal p-values')
       t0 <- as.double(Sys.time())
-      pvals <- sqlWrapper(dbc,
-                          sprintf('SELECT gwas_results.chrom, gwas_results.pos, gwas_results.ref, gwas_results.alt, pval, impact %s FROM %sgwas_results LEFT JOIN vep USING (chrom, pos, ref, alt) WHERE %s AND %s AND %s AND %s AND pval IS NOT NULL;',
-                                  if (any(c('signal', 'signals') %in% tolower(style))) ', beta, se, rsq, freq' else '', 
-                                  gtxanalysisdb(analysis), 
-                                  gtxwhat(analysis1 = analysis),
-                                  xentity$entity_where, # (entity=...) or (True)
-                                  gtxwhere(chrom, pos_ge = pos_start, pos_le = pos_end, tablename = 'gwas_results'),
-                                  gtxfilter(maf_ge = maf_ge, rsq_ge = rsq_ge, emac_ge = emac_ge, case_emac_ge = case_emac_ge, analysis = analysis)),
-                          uniq = FALSE)
+      pvals <- getDataFromDB(connectionType = 'SQL',
+                             connectionArguments = list(dbc, 
+                                                        sprintf('SELECT gwas_results.chrom, gwas_results.pos, gwas_results.ref, gwas_results.alt, pval, impact %s 
+                                                                FROM %sgwas_results 
+                                                                LEFT JOIN vep 
+                                                                USING (chrom, pos, ref, alt) 
+                                                                WHERE %s AND %s AND %s AND %s AND pval IS NOT NULL;',
+                                                                if (any(c('signal', 'signals') %in% tolower(style))) ', beta, se, rsq, freq' else '', 
+                                                                gtxanalysisdb(analysis), 
+                                                                gtxwhat(analysis1 = analysis),
+                                                                entityWhere, # (entity=...) or (True)
+                                                                gtxwhere(chrom, 
+                                                                         pos_ge = pos_start, 
+                                                                         pos_le = pos_end, 
+                                                                         tablename = 'gwas_results'),
+                                                                gtxfilter(maf_ge = maf_ge, 
+                                                                          rsq_ge = rsq_ge, 
+                                                                          emac_ge = emac_ge, 
+                                                                          case_emac_ge = case_emac_ge, 
+                                                                          analysis = analysis)),
+                                                        uniq = FALSE))
       t1 <- as.double(Sys.time())
       gtx_info('Query returned {nrow(pvals)} variants in query region {xregion$label} in {round(t1 - t0, 3)}s.')
     } else {
       gtx_info('Querying conditional p-values')
       t0 <- as.double(Sys.time())
-      pvals <- sqlWrapper(dbc,
-                          sprintf('SELECT gwas_results_cond.chrom, gwas_results_cond.pos, 
-                                          gwas_results_cond.ref, gwas_results_cond.alt, 
-                                          beta_cond AS beta, se_cond AS se, impact 
-                                   FROM %sgwas_results_cond 
-                                   LEFT JOIN vep 
-                                   USING (chrom, pos, ref, alt) 
-                                   WHERE %s AND %s AND %s;',
-                                  gtxanalysisdb(analysis), 
-                                  where_from(analysisu = analysis, signalu = signal, tablename = 'gwas_results_cond'), 
-                                  xentity$entity_where, # (entity=...) or (True)
-                                  gtxwhere(chrom, pos_ge = pos_start, pos_le = pos_end, tablename = 'gwas_results_cond')),
-                          uniq = FALSE)
+      pvals <- getDataFromDB(connectionType = 'SQL', 
+                             connectionArguments = list(dbc, 
+                                                        sprintf('SELECT gwas_results_cond.chrom, gwas_results_cond.pos, gwas_results_cond.ref, gwas_results_cond.alt, 
+                                                                beta_cond AS beta, se_cond AS se, impact 
+                                                                FROM %sgwas_results_cond 
+                                                                LEFT JOIN vep 
+                                                                USING (chrom, pos, ref, alt) 
+                                                                WHERE %s AND %s AND %s;',
+                                                                gtxanalysisdb(analysis), 
+                                                                where_from(analysisu = analysis, 
+                                                                           signalu = signal, 
+                                                                           tablename = 'gwas_results_cond'), 
+                                                                entityWhere, # (entity=...) or (True)
+                                                                gtxwhere(chrom, 
+                                                                         pos_ge = pos_start, 
+                                                                         pos_le = pos_end, 
+                                                                         tablename = 'gwas_results_cond')), 
+                                                        uniq = FALSE))
       t1 <- as.double(Sys.time())
       gtx_info('Query returned {nrow(pvals)} variants in query region {xregion$label} in {round(t1 - t0, 3)}s.')
       pvals$pval <- with(pvals, pchisq((beta/se)^2, df = 1, lower.tail = FALSE))
@@ -695,10 +712,15 @@ regionplot.data <- function(analysis, entity, signal,
         if (is.null(pval1) && !missing(rs)) {
           if (identical(length(rs), 1L)) {
             # query this rs id
-            qrs <- sqlWrapper(dbc,
-                       sprintf('SELECT chrom, pos, ref, alt FROM sites WHERE %s;',
-                               gtxwhere(chrom = chrom, rs = rs)),
-                        uniq = FALSE, zrok = TRUE)
+            qrs <- getDataFromDB(connectionType = 'SQL',
+                                 connectionArguments = list(dbc,
+                                                            sprintf('SELECT chrom, pos, ref, alt 
+                                                                FROM sites 
+                                                                WHERE %s;',
+                                                                    gtxwhere(chrom = chrom, 
+                                                                             rs = rs)),
+                                                            uniq = FALSE, 
+                                                            zrok = TRUE))
             # use merge as a way to subset on match by all of chrom/pos/ref/alt
             # note default merge is all.x = FALSE, all.y = FALSE
             pval1 <- merge(pvals, qrs)[ , c('chrom', 'pos', 'ref', 'alt'), drop = FALSE]
@@ -719,15 +741,20 @@ regionplot.data <- function(analysis, entity, signal,
           # Note that if db guarantees 1:1 between variants in the pairwise TABLE ld, and the
           # per-variant TABLE ldref, this can be done more efficiently
           # Notes:  cannot use gtxwhere because of nonstandard names chrom1, pos1
-          has_ld <- sqlWrapper(dbc, 
-                          sprintf('SELECT chrom1 AS chrom, pos1 AS pos, ref1 AS ref, alt1 AS alt, True AS has_ld \
-                                       FROM ld \
-                                       WHERE chrom1 = \'%s\' AND pos1 >= %s AND pos1 <= %s \
-                                       GROUP BY chrom1, pos1, ref1, alt1;',
-                                  sanitize1(xregion$chrom, values = c(1:22, 'X')), # should be a type for chrom  
-                                  sanitize1(xregion$pos_start, type = 'int'),
-                                  sanitize1(xregion$pos_end, type = 'int')),
-                               uniq = FALSE, zrok = TRUE)
+          has_ld <- getDataFromDB(connectionType = 'SQL',
+                                  connectionArguments = list(dbc, 
+                                                             sprintf('SELECT chrom1 AS chrom, pos1 AS pos, ref1 AS ref, alt1 AS alt, True AS has_ld \
+                                                                 FROM ld \
+                                                                 WHERE chrom1 = \'%s\' AND pos1 >= %s AND pos1 <= %s \
+                                                                 GROUP BY chrom1, pos1, ref1, alt1;',
+                                                                     sanitize1(xregion$chrom, 
+                                                                               values = c(1:22, 'X')), # should be a type for chrom  
+                                                                     sanitize1(xregion$pos_start, 
+                                                                               type = 'int'),
+                                                                     sanitize1(xregion$pos_end, 
+                                                                               type = 'int')),
+                                                             uniq = FALSE, 
+                                                             zrok = TRUE))
           has_ld <- within(merge(has_ld, pvals[ , c('chrom', 'pos', 'ref', 'alt', 'pval'), drop = FALSE],
                                  all.x = FALSE, all.y = TRUE),
                            has_ld[is.na(has_ld)] <- FALSE)
@@ -753,11 +780,17 @@ regionplot.data <- function(analysis, entity, signal,
         if (!is.null(pval1)) {
           stopifnot(identical(nrow(pval1), 1L)) # This will fail if has_ld was all FALSE or had zero rows, see above
           gtx_debug('Querying pairwise LD with index chr{pval1$chrom}:{pval1$pos}:{pval1$ref}>{pval1$alt}')
-          ld1 <- sqlWrapper(dbc, 
-                          sprintf('SELECT chrom2 AS chrom, pos2 AS pos, ref2 AS ref, alt2 AS alt, r FROM ld
-                                   WHERE chrom1=\'%s\' AND pos1=%s AND ref1=\'%s\' AND alt1=\'%s\';',
-                                  pval1$chrom, pval1$pos, pval1$ref, pval1$alt), # should we sanitize
-                          uniq = FALSE, zrok = TRUE)
+          ld1 <- getDataFromDB(connectionType = 'SQL',
+                               connectionArguments = list(dbc, 
+                                                          sprintf('SELECT chrom2 AS chrom, pos2 AS pos, ref2 AS ref, alt2 AS alt, r 
+                                                                    FROM ld
+                                                                    WHERE chrom1=\'%s\' AND pos1=%s AND ref1=\'%s\' AND alt1=\'%s\';',
+                                                                  pval1$chrom, 
+                                                                  pval1$pos, 
+                                                                  pval1$ref, 
+                                                                  pval1$alt), # should we sanitize
+                                                          uniq = FALSE, 
+                                                          zrok = TRUE))
           pvals <- merge(pvals, rbind(pval1, ld1), all.x = TRUE, all.y = FALSE)
           # sort by decreasing r^2 (will be resorted for plotting, so makes 
           # a .data() call work as a useful proxy search
@@ -870,12 +903,19 @@ regionplot.genelayout <- function (chrom, pos_start, pos_end, ymax, cex = 0.75,
   yplt <- par("plt")[4] - par("plt")[3] # figure as fraction of plot, assumes no subsequent changes to par("mar")
   xplt <- par("plt")[2] - par("plt")[1]
   xusr <- pos_end - pos_start # par("usr")[2] - par("usr")[1] 
-  return(with(sqlWrapper(getOption('gtx.dbConnection_cache_genes', dbc), 
-                       ## use SQL query to aggregate over multiple rows with same name to get whole span
-                       sprintf('SELECT min(pos_start) AS pos_start, max(pos_end) AS pos_end, hgncid, ensemblid FROM genes WHERE %s %s GROUP BY ensemblid, hgncid ORDER BY pos_start', 
-                               gtxwhere(chrom = chrom, pos_end_ge = pos_start, pos_start_le = pos_end),
-			       if (protein_coding_only) 'AND genetype=\'protein_coding\'' else ''),
-			uniq = FALSE, zrok = TRUE),
+  return(with(getDataFromDB(connectionType = 'SQL',
+                            connectionArguments = list(getOption('gtx.dbConnection_cache_genes', dbc),
+                                                       sprintf('SELECT min(pos_start) AS pos_start, max(pos_end) AS pos_end, hgncid, ensemblid 
+                                                               FROM genes 
+                                                               WHERE %s %s 
+                                                               GROUP BY ensemblid, hgncid 
+                                                               ORDER BY pos_start', 
+                                                               gtxwhere(chrom = chrom, 
+                                                                        pos_end_ge = pos_start, 
+                                                                        pos_start_le = pos_end),
+                                                               if (protein_coding_only) 'AND genetype=\'protein_coding\'' else ''),
+                                                       uniq = FALSE, 
+                                                       zrok = TRUE)),
               {
                 label <- ifelse(hgncid != '', as.character(hgncid), as.character(ensemblid)) # could also check NULL or NA?
                 ## compute start and end plot positions for each gene, using larger of transcript line and gene name annotation
@@ -980,10 +1020,16 @@ regionplot.recombination <- function(chrom, pos_start, pos_end, yoff = -.5,
   if (missing(pos_start)) pos_start = floor(par("usr")[1])
   if (missing(pos_end)) pos_end = ceiling(par("usr")[2])
 
-  with(sqlWrapper(dbc, 
-                sprintf('SELECT pos_start, pos_end, recombination_rate FROM genetic_map WHERE %s', 
-                        gtxwhere(chrom = chrom, pos_end_ge = pos_start, pos_start_le = pos_end)),
-		uniq = FALSE, zrok = TRUE),
+  with(getDataFromDB(connectionType = 'SQL',
+                     connectionArguments = list(dbc, 
+                                                sprintf('SELECT pos_start, pos_end, recombination_rate 
+                                                        FROM genetic_map 
+                                                        WHERE %s', 
+                                                        gtxwhere(chrom = chrom, 
+                                                                 pos_end_ge = pos_start,
+                                                                 pos_start_le = pos_end)),
+                                                uniq = FALSE, 
+                                                zrok = TRUE)),
        {
          abline(h = yoff, col = "grey")
          yscale <- (par("usr")[4] - yoff)*.75/max(recombination_rate)
