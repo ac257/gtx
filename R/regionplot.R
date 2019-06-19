@@ -1,12 +1,4 @@
 #' S4 class containing the data to draw a regional association plot.
-#' 
-#' The following style plots can be drawn with a \code{regionplot} object:
-#' \itemize{
-#'  \item{"'signals'"}
-#'  \item{"'ld'"}
-#'  \item{"'classic'"}
-#'  \item{"'signal'"}
-#'  }
 #'  
 #' @slot queryForPValues The query used to get the p-values for a given GWAS 
 #'   from a database.
@@ -91,6 +83,16 @@ regionplot <- setClass("regionplot",
 #'   \code{getOption("gtx.dbConnection", NULL)}.
 #' @return Regional association plots and a \code{\linkS4class{regionplot}} 
 #'   object containing the data used to draw the regional association plot.
+#'
+#' @details \code{regionplot()} draws a regional association plot by querying the 
+#'   required data via a database connection (see \code{\link{gtxdbcheck}}). 
+#'   
+#'   The region to plot results over can be specified in several different ways.
+#'   The region can be supplied as physical coordinates using the arguments 
+#'   \code{chrom}, \code{pos}, \code{pos_start} and \code{pos_end}. 
+#'   Alternatively, the region can be centered on a gene of interest, using 
+#'   either the \code{hgncid} or \code{ensemblid} argument. The size of the 
+#'   region around the gene can be modified using the \code{surround} argument.
 #'   
 #' @author Toby Johnson \email{Toby.x.Johnson@@gsk.com}
 #' @family \code{\link{regionplot.data}, \link{getDataForRegionplot}}

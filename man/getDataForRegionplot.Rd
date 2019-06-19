@@ -76,7 +76,5 @@ A \code{\linkS4class{regionplot}} object containing the data needed
 \seealso{
 \code{\link{regionplot()}} to get the data and draw regional 
   association plots in one step.
-
-Other \code{\link{regionplot}} functions.: \code{\link{regionplot}}
 }
 \concept{\code{\link{regionplot}} functions.}
