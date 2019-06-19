@@ -45,22 +45,79 @@ regionplot <- setClass("regionplot",
                                         plotSubTitle = NA_character_)
 )
 
-
-## regionplot.new and associated functions
-## assumes database connection is provided by getOption("gtx.dbConnection")
-
+#' Regional association plot.
+#' 
+#' Draw a regional association plot.
+#' 
+#' @param analysis Character giving the key value for the GWAS analysis to draw 
+#'   a regional association plot from.
+#' @param entity Optional entity within eQTL to draw the regional association 
+#'   plot for, as ENSEMBL or HGNC identifier. Character.
+#' @param signal  
+#' @param chrom Optional character specifying the chromosome.
+#' @param pos_start Optional start position of the region for which to draw the 
+#'   plot. Integer.
+#' @param pos_end Optional end position of the region for which to draw the 
+#'   plot. Integer.
+#' @param pos Optional position for which to define the region around. Integer.
+#' @param hgncid Optional HGNC identifier of the gene to define the region 
+#'   around. Character.
+#' @param ensemblid Optional ENSEMBL gene identifier to define the region 
+#'   around. Character.
+#' @param rs dbSNP RS identifier of the variant to define the region around.
+#'   Character.
+#' @param surround Distance around the gene to include in the region for 
+#'   plotting. Default is \code{500000}.
+#' @param maf_ge Numeric filtering threshold. Minor alleles with a frequency 
+#'   greater than or equal to \code{maf_ge} will be included in the plot.
+#' @param rsq_ge Numeric filtering threshold, specifying imputation R-squared 
+#'   greater than or equal to \code{rsq_ge}.
+#' @param emac_ge Numeric filtering threshold. Minor allele count must be 
+#'   greater than or equal to \code{emac_ge}.
+#' @param case_emac_ge Numeric filtering threshold. Case minor allele count must
+#'   be greater than or equal to \code{case_emac_ge}.
+#' @param priorsd Optional. Default is \code{1}. Numeric.
+#' @param priorc Optional. Default is \code{1e-5}. Numeric.
+#' @param cs_size Default is \code{0.95}. Numeric.
+#' @param plot_ymax Numeric maximum y-axis value. Default is \code{300}.
+#' @param style Character vector specifying the style or styles of plot to 
+#'   output. Can be one or more of \code{c('none', 'signals', 'signal', 
+#'   'classic', 'ld')}. Default is \code{'signals'}.
+#' @param protein_coding_only Whether to restrict annotation to protein coding
+#'   genes only. Default is \code{TRUE}.
+#' @param highlight_style Highlighting style for plotting. Default is 
+#'   \code{'circle'}.
+#' @param dbc A database connection. Default is 
+#'   \code{getOption("gtx.dbConnection", NULL)}.
+#' @return Regional association plots and a \code{\linkS4class{regionplot}} 
+#'   object containing the data used to draw the regional association plot.
+#'
+#' @family \code{\link{regionplot}} functions.
+#' @seealso \code{\link{getDataForRegionplot()}} to get the data for 
+#'   \code{regionplot()}.
+#' 
 #' @export
-regionplot <- function(analysis, # what analysis (entity should be next)
-                       entity, # optional
-                       signal, # optional
-                       chrom, pos_start, pos_end, pos,  
-                       hgncid, ensemblid, rs, 
-                       surround = 500000, # where
-                       maf_ge, rsq_ge, emac_ge, case_emac_ge, # which variants to include
-                       priorsd = 1, priorc = 1e-5, cs_size = 0.95, # parameters for finemapping
-                       plot_ymax = 300, # plot output control starts here... # 300 is too high FIXME
+regionplot <- function(analysis, 
+                       entity,
+                       signal, 
+                       chrom, 
+                       pos_start, 
+                       pos_end, 
+                       pos,  
+                       hgncid, 
+                       ensemblid, 
+                       rs, 
+                       surround = 500000, 
+                       maf_ge, 
+                       rsq_ge, 
+                       emac_ge, 
+                       case_emac_ge, 
+                       priorsd = 1, 
+                       priorc = 1e-5, 
+                       cs_size = 0.95, 
+                       plot_ymax = 300, 
                        style = 'signals',
-                       protein_coding_only = TRUE, # whether to only show protein coding genes in annotation below plot
+                       protein_coding_only = TRUE, 
                        highlight_style = 'circle', 
                        dbc = getOption("gtx.dbConnection", NULL)) {
 
