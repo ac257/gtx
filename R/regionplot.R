@@ -27,14 +27,16 @@ regionplot <- setClass("regionplot",
                                  xRegion = "list",
                                  indexSNPs = 'data.frame',
                                  plotTitle = "character",
-                                 plotSubTitle = "character"),
+                                 plotSubTitle = "character",
+                                 styleSignals = "list"),
                        prototype = list(queryForPValues = NA_character_,
                                         pValues = NULL,
                                         xEntity = NULL,
                                         xRegion = NULL,
                                         indexSNPs = NULL,
                                         plotTitle = NA_character_,
-                                        plotSubTitle = NA_character_)
+                                        plotSubTitle = NA_character_,
+                                        styleSignals = NULL)
 )
 
 #' Regional association plot.
@@ -163,6 +165,19 @@ regionplot <- function(analysis,
                                             emac_ge,
                                             case_emac_ge, 
                                             dbc = dbc)
+  
+  # Data processing for signals
+  if ('signals' %in% tolower(style)) {
+    dataForRegionplot@styleSignals <- styleSignals(
+      pValues = dataForRegionplot@pValues,
+      chrom = dataForRegionplot@xRegion$chrom,
+      pos_start = dataForRegionplot@xRegion$pos_start,
+      pos_end = dataForRegionplot@xRegion$pos_end,
+      priorsd = priorsd,
+      priorc = priorc,
+      cs_size = cs_size
+    )
+  }
   
   ## Use na.rm in min, even though these should not be present,
   ##   because we want regionplot() to have robust behaviour
@@ -589,6 +604,7 @@ getPValues <- function(analysis,
 }
 
 # Data processing for the 'signals' style
+# Returns a named list
 styleSignals <- function(pValues,
                          analysis,
                          chrom,
@@ -619,15 +635,16 @@ styleSignals <- function(pValues,
                        cs_size = cs_size, 
                        cs_only = TRUE)
     
-    ## note fm_cleo already prints logging messages about number of signals
+  # note fm_cleo already prints logging messages about number of signals
     
   if (nrow(fmResults) > 0) {
+    
     # sort by decreasing posterior probability
     # match each row or pvals with *first* match in fmResults, thus linking any 
     # variants in more than one credible set, with the one for the signal for 
     # which it has higher probability
     
-    fmResults <- fmResults[order(fmResult$pp_cleo, decreasing = TRUE), ]
+    fmResults <- fmResults[order(fmResults$pp_cleo, decreasing = TRUE), ]
     
     signalsPValues <- cbind(signalsPValues,
                             fmResults[match(with(signalsPValues, 
@@ -644,18 +661,14 @@ styleSignals <- function(pValues,
     
     # Convert NA values of pp_cleo to zero to make them safe with sorting and 
     # plotting
-    pvals$pp_cleo[is.na(pvals$pp_cleo)] <- 0. 
+    signalsPValues$pp_cleo[is.na(signalsPValues$pp_cleo)] <- 0. 
     
     # Set NA values of cs_cleo to FALSE to be safe with tables and plotting
-    pvals$cs_cleo[is.na(pvals$cs_cleo)] <- FALSE 
-    
-    # Need to work out how to save the fmResults data frame for signals style
-    # in the output - would probably be best to have them as a slot or named 
-    # part of a list
-    ## Propagate CLEO index variants as attr()ibute
-    attr(pvals, 'index_cleo') <- attr(fmres, 'index_cleo')
-  } 
+    signalsPValues$cs_cleo[is.na(signalsPValues$cs_cleo)] <- FALSE 
+  }
   
+  return(list(signalsPvalues = signalsPValues, 
+              indexCleo = attr(fmResults, "index_cleo")))
 }
 
 # Data processing for the 'signal' style
@@ -852,7 +865,7 @@ regionplot.data <- function(analysis, entity, signal,
                                                                 if (any(c('signal', 'signals') %in% tolower(style))) ', beta, se, rsq, freq' else '', 
                                                                 gtxanalysisdb(analysis), 
                                                                 gtxwhat(analysis1 = analysis),
-                                                                entityWhere, # (entity=...) or (True)
+                                                                xentity$entity_where, # (entity=...) or (True)
                                                                 gtxwhere(chrom, 
                                                                          pos_ge = pos_start, 
                                                                          pos_le = pos_end, 
@@ -880,7 +893,7 @@ regionplot.data <- function(analysis, entity, signal,
                                                                 where_from(analysisu = analysis, 
                                                                            signalu = signal, 
                                                                            tablename = 'gwas_results_cond'), 
-                                                                entityWhere, # (entity=...) or (True)
+                                                                xentity$entity_where, # (entity=...) or (True)
                                                                 gtxwhere(chrom, 
                                                                          pos_ge = pos_start, 
                                                                          pos_le = pos_end, 
