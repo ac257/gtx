@@ -103,15 +103,15 @@ Draw a regional association plot.
 \section{Slots}{
 
 \describe{
-\item{\code{queryForPValues}}{The query used to get the p-values for a given GWAS 
+\item{\code{queryForPValues}}{Query used to get the p-values for a given GWAS 
 from a database.}
 
-\item{\code{pValues}}{A database containing the p-values for plotting.}
+\item{\code{pValues}}{Data frame containing the original p-values.}
 
-\item{\code{xEntity}}{A named list containing \code{entity}, \code{entity_label} and 
+\item{\code{xEntity}}{Named list containing \code{entity}, \code{entity_label} and 
 \code{entity_where}.}
 
-\item{\code{xRegion}}{A named list containing \code{chrom}, \code{pos_start}, 
+\item{\code{xRegion}}{Named list containing \code{chrom}, \code{pos_start}, 
 \code{pos_end} and \code{label}. 
 \itemize{
  \item{\code{chrom} is the chromosome to be plotted.} 
@@ -121,12 +121,23 @@ from a database.}
   and region.}
  }}
 
-\item{\code{indexSNPs}}{A data frame with two columns for the position and p-values 
-of SNPs that should be highlighted in the output plot.}
+\item{\code{indexSNPs}}{Data frame with two columns for the position and p-values of 
+SNPs that should be highlighted in the output plot.}
 
-\item{\code{plotTitle}}{The title for a regional association plot.}
+\item{\code{plotTitle}}{Title for a regional association plot.}
 
-\item{\code{plotSubTitle}}{The subtitle for a regional association plot.}
+\item{\code{plotSubTitle}}{Subtitle for a regional association plot.}
+
+\item{\code{styleSignals}}{Named list with the data needed to draw a regional 
+association plot with the 'signals' style. List contains:
+\itemize{
+ \item{\code{signalsPvalues} is the p-values data frame for style 
+   'signals'.}
+ \item{\code{indexCleo} is the summary statistics for index variants, which
+   is generated during CLEO finemapping.}
+ }}
+
+\item{\code{styleSignal}}{Data frame with the p-values for style 'signal'.}
 }}
 
 \seealso{

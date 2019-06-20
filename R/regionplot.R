@@ -1,11 +1,11 @@
 #' S4 class containing the data to draw a regional association plot.
 #'  
-#' @slot queryForPValues The query used to get the p-values for a given GWAS 
+#' @slot queryForPValues Query used to get the p-values for a given GWAS 
 #'   from a database.
-#' @slot pValues A database containing the p-values for plotting.
-#' @slot xEntity A named list containing \code{entity}, \code{entity_label} and 
+#' @slot pValues Data frame containing the original p-values.
+#' @slot xEntity Named list containing \code{entity}, \code{entity_label} and 
 #'   \code{entity_where}.
-#' @slot xRegion A named list containing \code{chrom}, \code{pos_start}, 
+#' @slot xRegion Named list containing \code{chrom}, \code{pos_start}, 
 #'   \code{pos_end} and \code{label}. 
 #'   \itemize{
 #'    \item{\code{chrom} is the chromosome to be plotted.} 
@@ -14,10 +14,19 @@
 #'    \item{\code{label} gives a label for printing that shows the chromosome 
 #'     and region.}
 #'    }
-#' @slot indexSNPs A data frame with two columns for the position and p-values 
-#'   of SNPs that should be highlighted in the output plot.
-#' @slot plotTitle The title for a regional association plot.
-#' @slot plotSubTitle The subtitle for a regional association plot.
+#' @slot indexSNPs Data frame with two columns for the position and p-values of 
+#'   SNPs that should be highlighted in the output plot.
+#' @slot plotTitle Title for a regional association plot.
+#' @slot plotSubTitle Subtitle for a regional association plot.
+#' @slot styleSignals Named list with the data needed to draw a regional 
+#'   association plot with the 'signals' style. List contains:
+#'   \itemize{
+#'    \item{\code{signalsPvalues} is the p-values data frame for style 
+#'      'signals'.}
+#'    \item{\code{indexCleo} is the summary statistics for index variants, which
+#'      is generated during CLEO finemapping.}
+#'    } 
+#' @slot styleSignal Data frame with the p-values for style 'signal'.
 #' 
 #' @seealso \code{\link{regionplot}}
 regionplot <- setClass("regionplot",
@@ -28,7 +37,8 @@ regionplot <- setClass("regionplot",
                                  indexSNPs = 'data.frame',
                                  plotTitle = "character",
                                  plotSubTitle = "character",
-                                 styleSignals = "list"),
+                                 styleSignals = "list",
+                                 styleSignal = 'data.frame'),
                        prototype = list(queryForPValues = NA_character_,
                                         pValues = NULL,
                                         xEntity = NULL,
@@ -36,7 +46,8 @@ regionplot <- setClass("regionplot",
                                         indexSNPs = NULL,
                                         plotTitle = NA_character_,
                                         plotSubTitle = NA_character_,
-                                        styleSignals = NULL)
+                                        styleSignals = NULL,
+                                        styleSignal = NULL)
 )
 
 #' Regional association plot.
@@ -177,6 +188,16 @@ regionplot <- function(analysis,
       priorc = priorc,
       cs_size = cs_size
     )
+  }
+  
+  # Data processing for signal
+  if ('signal' %in% tolower(style)) {
+    dataForRegionplot@styleSignal <- styleSignal(
+      pValues = dataForRegionplot@pValues,
+      priorsd = priorsd,
+      priorc = priorc,
+      cs_size = cs_size
+      )
   }
   
   ## Use na.rm in min, even though these should not be present,
@@ -672,16 +693,23 @@ styleSignals <- function(pValues,
 }
 
 # Data processing for the 'signal' style
-styleSignal <- function(){
+# Returns a data frame with the p-values for the 'signal' style
+styleSignal <- function(pValues, priorsd, priorc, cs_size){
   
-  ## The code below is from regionplot.data()
+  # The code below is from regionplot.data()
   
   futile.logger::flog.debug('Finemapping under single signal assumption')
-  pvals <- fm_signal(pvals, 
-                     priorsd = priorsd, 
-                     priorc = priorc, 
-                     cs_size = cs_size, 
-                     cs_only = FALSE)
+  signalPValues <- fm_signal(pValues, 
+                             priorsd = priorsd, 
+                             priorc = priorc, 
+                             cs_size = cs_size, 
+                             cs_only = FALSE)
+  
+  # Remove unused attributes from df
+  attr(signalPValues, "params_signal") <- NULL
+  attr(signalPValues, "nullpp_signal") <- NULL
+  
+  return(signalPValues)
 }
 
 # Data processing for the 'classic' style
