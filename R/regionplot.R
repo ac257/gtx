@@ -11,6 +11,20 @@ styleLd <- setClass("styleLd",
                     prototype = c(ldPValues = NULL,
                                   indexVariant = NULL))
 
+#' S4 class containing the data to draw a regional association plot with the 
+#'   'signals' style.
+#'   
+#' @slot signalsPValues Data frame containing the p-values for the 'signals' 
+#'   style.
+#' @slot index_cleo UNDEFINED
+#' 
+#' @seealso \code{\link{regionplot}}
+styleSignals <- setClass("styleSignals",
+                         slots = c(signalsPValues = 'data.frame',
+                                   index_cleo = 'data.frame'),
+                         prototype = c(signalsPValues = NULL,
+                                       index_cleo = NULL))
+
 #' S4 class containing the data to draw a regional association plot.
 #'  
 #' @slot queryForPValues Query used to get the p-values for a given GWAS 
@@ -50,7 +64,7 @@ regionplot <- setClass("regionplot",
                                  indexSNPs = 'data.frame',
                                  plotTitle = "character",
                                  plotSubTitle = "character",
-                                 styleSignals = "list",
+                                 styleSignals = 'styleSignals',
                                  styleSignal = 'data.frame',
                                  styleLd = 'styleLd'),
                        prototype = list(queryForPValues = NA_character_,
@@ -213,6 +227,18 @@ regionplot <- function(analysis,
       priorc = priorc,
       cs_size = cs_size
       )
+  }
+  
+  if ('ld' %in% tolower(style)) {
+    dataForRegionplot@styleLd <- styleLd(
+      pValues = dataForRegionplot@pValues,
+      chrom = dataForRegionplot@xRegion$chrom,
+      pos_start = dataForRegionplot@xRegion$pos_start,
+      pos_end = dataForRegionplot@xRegion$pos_end,
+      pos = pos,
+      rs = rs,
+      dbc = dbc
+    )
   }
   
   ## Use na.rm in min, even though these should not be present,
@@ -704,8 +730,11 @@ styleSignals <- function(pValues,
     signalsPValues$cs_cleo[is.na(signalsPValues$cs_cleo)] <- FALSE 
   }
   
-  return(list(signalsPvalues = signalsPValues, 
-              indexCleo = attr(fmResults, "index_cleo")))
+  styleSignalsObj <- new('styleSignals')
+  styleSignalsObj@signalsPValues <- signalsPValues
+  styleSignalsObj@index_cleo <- attr(fmResults, "index_cleo")
+  
+  return(styleSignalsObj)
 }
 
 # Data processing for the 'signal' style
