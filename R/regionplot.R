@@ -1,3 +1,16 @@
+#' S4 class containing the data to draw a regional association plot with the 
+#'   'ld' style.
+#' 
+#' @slot ldPValues Data frame containing the p-values for the 'ld' style.
+#' @slot indexVariant Data frame with one row, containing the index variant.
+#' 
+#' @seealso \code{\link{regionplot}}
+styleLd <- setClass("styleLd", 
+                    slots = c(ldPvalues = 'data.frame',
+                              indexVariant = 'data.frame'),
+                    prototype = c(ldPValues = NULL,
+                                  indexVariant = NULL))
+
 #' S4 class containing the data to draw a regional association plot.
 #'  
 #' @slot queryForPValues Query used to get the p-values for a given GWAS 
@@ -38,7 +51,8 @@ regionplot <- setClass("regionplot",
                                  plotTitle = "character",
                                  plotSubTitle = "character",
                                  styleSignals = "list",
-                                 styleSignal = 'data.frame'),
+                                 styleSignal = 'data.frame',
+                                 styleLd = 'styleLd'),
                        prototype = list(queryForPValues = NA_character_,
                                         pValues = NULL,
                                         xEntity = NULL,
@@ -47,7 +61,8 @@ regionplot <- setClass("regionplot",
                                         plotTitle = NA_character_,
                                         plotSubTitle = NA_character_,
                                         styleSignals = NULL,
-                                        styleSignal = NULL)
+                                        styleSignal = NULL,
+                                        styleLd = NULL)
 )
 
 #' Regional association plot.
@@ -816,13 +831,12 @@ styleLd <- function(pValues,
                                                       uniq = FALSE, 
                                                       zrok = TRUE))
     
-    hasLd <- within(merge(hasLd, pValues[ , c('chrom', 'pos', 'ref', 'alt', 'pval'),
-                                          drop = FALSE], 
+    hasLd <- within(merge(hasLd, pValues[ , c('chrom', 'pos', 'ref', 'alt', 'pval'), drop = FALSE], 
                           all.x = FALSE, 
                           all.y = TRUE), 
-                    hasLd[is.na(hasLd)] <- FALSE)
+                    has_ld[is.na(has_ld)] <- FALSE)
     
-    if (nrow(hasLd) == 0L || all(!hasLd$hasLd)) {
+    if (nrow(hasLd) == 0L || all(!hasLd$has_ld)) {
       gtx_warn('Skipping pairwise LD index selection because no variants have 
                pairwise LD data')
     } else {
@@ -830,14 +844,14 @@ styleLd <- function(pValues,
       # order so we can warn how many smaller P-value variants were skipped 
       hasLd <- hasLd[order(hasLd$pval), , drop = FALSE]
       
-      if (hasLd$hasLd[1]) {
+      if (hasLd$has_ld[1]) {
         # smallest P-value variant has LD, so okay to use this
         indexVariant <- hasLd[1, c('chrom', 'pos', 'ref', 'alt'), drop = FALSE]
         indexVariant$r <- 1
         gtx_debug('Selected pairwise LD index chr{pval1$chrom}:{pval1$pos}:{pval1$ref}>{pval1$alt} 
                   (smallest P-value)')
       } else {
-        whichHasLd <- which(hasLd$hasLd)[1]
+        whichHasLd <- which(hasLd$has_ld)[1]
         indexVariant <- hasLd[whichHasLd, c('chrom', 'pos', 'ref', 'alt'), drop = FALSE]
         indexVariant$r <- 1
         gtx_warn('Pairwise LD index selection skipped {whichHasLd - 1} variants 
@@ -858,9 +872,8 @@ styleLd <- function(pValues,
     
     pairwiseLd <- getDataFromDB(connectionType = 'SQL',
                          connectionArguments = list(dbc, 
-                                                    sprintf('SELECT chrom2 AS chrom, pos2 AS pos, ref2 AS ref, alt2 AS alt, r 
-                                                                  FROM ld
-                                                                  WHERE chrom1=\'%s\' AND pos1=%s AND ref1=\'%s\' AND alt1=\'%s\';',
+                                                    sprintf('SELECT chrom2 AS chrom, pos2 AS pos, ref2 AS ref, alt2 AS alt, r FROM ld
+                                                            WHERE chrom1=\'%s\' AND pos1=%s AND ref1=\'%s\' AND alt1=\'%s\';',
                                                             indexVariant$chrom, 
                                                             indexVariant$pos, 
                                                             indexVariant$ref, 
@@ -868,10 +881,7 @@ styleLd <- function(pValues,
                                                     uniq = FALSE, 
                                                     zrok = TRUE))
     
-    ldPValues <- merge(pValues, 
-                       rbind(indexVariant, pairwiseLd), 
-                       all.x = TRUE, 
-                       all.y = FALSE)
+    ldPValues <- merge(pValues, rbind(indexVariant, pairwiseLd), all.x = TRUE, all.y = FALSE)
     
     # sort by decreasing r^2 (will be resorted for plotting, so makes 
     # a .data() call work as a useful proxy search
@@ -879,7 +889,7 @@ styleLd <- function(pValues,
     
     # threshold seems high but pairwise LD often missing form low frequency 
     # variants
-    if (mean(is.na(pvals$r)) > 0.25) {
+    if (mean(is.na(ldPValues$r)) > 0.25) {
       gtx_warn('Pairwise LD with index 
                chr{pval1$chrom}:{pval1$pos}:{pval1$ref}>{pval1$alt} missing for 
                {round(mean(is.na(pvals$r))*100)}% of variants, check warnings 
@@ -892,7 +902,11 @@ styleLd <- function(pValues,
     ldPValues$r <- NA
   }
   
-  return(list(ldPValues = ldPValues, indexVariant = indexVariant))
+  styleLdObj <- new('styleLd')
+  styleLdObj@ldPvalues <- ldPValues
+  styleLdObj@indexVariant <- indexVariant
+  
+  return(styleLdObj)
 }
 
 #' @export
