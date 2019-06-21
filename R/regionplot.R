@@ -25,6 +25,16 @@ styleSignals <- setClass("styleSignals",
                          prototype = c(signalsPValues = NULL,
                                        index_cleo = NULL))
 
+#' S4 class containing the data to draw a regional association plot with the 
+#'   'signal' style.
+#'   
+#' @slot signalPValues Data frame with p-values for the 'signal' style.
+#' 
+#' @seealso \code{\link{regionplot}}
+styleSignal <- setClass("styleSignal",
+                        slots = c(signalPValues = 'data.frame'),
+                        prototype = c(signalPValues = NULL))
+
 #' S4 class containing the data to draw a regional association plot.
 #'  
 #' @slot queryForPValues Query used to get the p-values for a given GWAS 
@@ -754,7 +764,10 @@ styleSignal <- function(pValues, priorsd, priorc, cs_size){
   attr(signalPValues, "params_signal") <- NULL
   attr(signalPValues, "nullpp_signal") <- NULL
   
-  return(signalPValues)
+  styleSignalObj <- new('styleSignal')
+  styleSignalObj@signalPValues <- signalPValues
+  
+  return(styleSignalObj)
 }
 
 # Data processing for the 'classic' style
