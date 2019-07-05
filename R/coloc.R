@@ -857,7 +857,7 @@ multicoloc.plot <- function(res,
   # note, preserve order of entities because sorted by midpoint pos_start,pos_end
   # MUST BE preserved if replaced by a merge or left join
   #  res <- cbind(res, resc[match(res$entity1, resc$entity1), paste0('z', '.', analyses), with  = FALSE])
-  rownames(zmat) <- with(entities, ifelse(hgncid != '', as.character(hgncid), as.character(entity1))) # FIXME will this work for all entity types
+  rownames(zmat) <- with(entities, ifelse(hgncid != '' | is.na(hgncid), as.character(hgncid), as.character(entity1))) # FIXME will this work for all entity types
   colnames(zmat) <- analyses
 
   ## thresh_analysis <- thresh_analysis*max(zmat, na.rm = TRUE) # threshold could be relative instead of absolute
